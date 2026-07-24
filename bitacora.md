@@ -78,7 +78,7 @@ Configurar Axios para que envíe y reciba automáticamente tokens mediante cooki
 ## Creación de vistas base
 Se creará la estructura base de las páginas para que el enrutador funcione correctamente.
 1. Crear una carpeta llamada `pages` dentro de src/.
-2. Crear LoginPage.tsx, ProfilePage.tsx y RegisterPage.tsx dentro de src/pages/. Ver: [LoginPage](./shop-mvp-front/src/pages/LoginPage.tsx), [ProfilePage](./shop-mvp-front/src/pages/ProfilePage.tsx), [RegisterPage](./shop-mvp-front/src/pages/RegisterPage.tsx).
+2. Crear LoginPage.tsx, ProfilePage.tsx y RegisterPage.tsx dentro de src/pages/. Véase: [LoginPage](./shop-mvp-front/src/pages/LoginPage.tsx), [ProfilePage](./shop-mvp-front/src/pages/ProfilePage.tsx), [RegisterPage](./shop-mvp-front/src/pages/RegisterPage.tsx).
 
 ## Configuración de Enrutador Principal
 Se unirán las vistas base antes creadas.
@@ -105,3 +105,14 @@ Se unirán las vistas base antes creadas.
 		}
 
 ## Construcción de Formularios y Conexión Real a Backend
+Se creará un archivo para gestionar las peticiones de autenticación ordenadamente.
+1. Crear el archivo auth.services.ts en src/services/ y agregar contenido. Véase: [auth.service.ts](./src/services/auth.service.ts).
+2. Implementar la vista de Login usando las clases de Daysi para crear un formulario efectivo. Reemplazar el contenido de src/pages/LoginPage.tsx, src/pages/ProfilePage.tsx y src/pages/RegisterPage.tsx. Véase: [LoginPage](./shop-mvp-front/src/pages/LoginPage.tsx), [ProfilePage](./shop-mvp-front/src/pages/ProfilePage.tsx), [RegisterPage](./shop-mvp-front/src/pages/RegisterPage.tsx)
+3. Asegurarse de tener en el backend, en server.ts:
+
+		import cors from 'cors';
+
+		app.use(cors({
+			origin: 'http://localhost:5173', // La URL exacta del frontend en Vite
+			credentials: true // Vital para aceptar las cookies HttpOnly
+		}));
