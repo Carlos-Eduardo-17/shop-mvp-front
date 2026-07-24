@@ -26,7 +26,7 @@ export default function ProfilePage() {
     const handleLogout = async () => {
         try {
             await authService.logout();
-            // El backend debería encargarse de limpiar las cookies
+            // El backend debería encargarse de limpiar las cookies            
             navigate('/login');
         } catch (error) {
             console.error('Error cerrando sesión', error);
