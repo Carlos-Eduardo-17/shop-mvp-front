@@ -116,3 +116,11 @@ Se creará un archivo para gestionar las peticiones de autenticación ordenadame
 			origin: 'http://localhost:5173', // La URL exacta del frontend en Vite
 			credentials: true // Vital para aceptar las cookies HttpOnly
 		}));
+
+## Configuración de Instancia Base de Axios
+1. En src/services/api.ts, en axios.create, agregar: `headers: { 'Content-Type': 'application/json' }`
+2. Crear el servicio del catálogo
+- En este proyecto, los endpoints del catálogo son de solo lectura.
+- Crear src/services/product.service.ts y agregar contenido. Véase [product.service.ts](src/services/product.service.ts).
+3. Crear la vista principal del catálogo
+- Crear [src/pages/Catalog.tsx](src/pages/Catalog.tsx) y agregar contenido.
