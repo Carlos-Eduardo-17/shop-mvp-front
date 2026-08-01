@@ -183,3 +183,27 @@ Al probar el flujo completo con el backend real aparecieron varios problemas. Se
 	Se actualizó la interfaz `Product` (`id` y `categoryId` como `number`, `unitPrice`, `unitsInStock`, `categoryName`) y se ajustó `Catalog.tsx` para usar los nombres reales de campo. De paso, se aprovechó `unitsInStock` para deshabilitar el botón y mostrar "Sin stock" cuando corresponde, y `categoryName` para un badge de categoría en cada card. Véase: [Catalog.tsx](./src/pages/Catalog.tsx).
 
 **Estado tras esta sesión:** login, registro, logout y catálogo funcionando de punta a punta contra el backend real. Pendiente: detalle de producto (`/products/:id`), filtro/listado de categorías, carrito y flujo de órdenes.
+
+## Detalle de producto y filtro por categorías
+Se agregó `ProductDetailPage.tsx` (ruta `/products/:id`, conectada al botón "Ver detalle" del catálogo) y el filtro por categorías en `Catalog.tsx` (`category.service.ts` nuevo + `productService.getAll` ahora acepta `categoryId` opcional). Ambos funcionando de punta a punta.
+
+## Carrito: bug de rutas — la documentación (`endpoints.md`) del backend no coincide con el código real
+Al conectar `cart.service.ts` contra `POST /api/carts/cart/items`, `GET /api/carts/cart` y `DELETE /api/carts/cart/items` (tal como indica `docs/endpoints.md`), todas las peticiones fallaban — con el mismo mensaje de error genérico estando logueado o no, señal de que ni siquiera se estaba resolviendo la ruta.
+
+Revisando `server.ts` y `cart.route.ts` directamente, el router de carrito está montado en **`/api/cart`** (singular, no `/api/carts`), y dentro del router:
+- `POST /items` → ruta real: `POST /api/cart/items`
+- `GET /` → ruta real: `GET /api/cart`
+- `DELETE /item` → ruta real: `DELETE /api/cart/item`, y además **espera `cartItemId` como query param** (`req.query["cartItemId"]` en el controller), no en el body como dice la documentación.
+
+Se corrigió `cart.service.ts` para usar las rutas y el formato reales. **Lección para el siguiente bloque (órdenes):** verificar `order.route.ts` y `server.ts` directamente antes de confiar en `docs/endpoints.md`, ya que quedó desactualizada al menos para el módulo de carrito.
+
+**Estado del carrito:** agregar producto (con selector de cantidad, tope de 5), ver carrito con detalle y total, y eliminar ítems — funcionando contra las rutas reales. Pendiente: flujo de órdenes (checkout).
+
+## Flujo de órdenes (checkout)
+Antes de escribir `order.service.ts`, se revisó `order.route.ts` y `server.ts` directamente (lección de la sesión anterior). A diferencia del carrito, aquí `docs/endpoints.md` sí coincide con el código real: `POST /api/orders` y `GET /api/orders`, body `{ shippingAddress }` (8-128 caracteres), mismo shape de respuesta documentado.
+
+Se creó `order.service.ts` (`create`, `getAll`). En `CartPage.tsx` se reemplazó el botón placeholder por un formulario con input de dirección de envío (validado en el cliente antes de llamar al backend) y el botón real de checkout; al confirmar, se crea la orden y se navega a `/orders`. Se creó `OrdersPage.tsx` (ruta `/orders`, link "Mis Órdenes" en el navbar) con el historial de órdenes, badge de estado (Pendiente de pago / Pagada) y detalle de cada línea.
+
+Nota: el detalle de cada orden que devuelve el backend solo trae `productId` (no el nombre del producto), así que por ahora se muestra como "Producto #id"; se podría enriquecer más adelante si el backend empieza a incluir el nombre.
+
+**Estado tras esta sesión:** con esto, el frontend cubre todo el flujo de punta a punta: login, registro, logout, catálogo, filtro por categoría, detalle de producto, carrito y órdenes.

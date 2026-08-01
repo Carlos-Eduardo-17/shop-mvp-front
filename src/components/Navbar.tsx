@@ -12,6 +12,12 @@ export default function Navbar() {
         <Link to="/catalog" className="btn btn-ghost">
           Catálogo
         </Link>
+        <Link to="/cart" className="btn btn-ghost">
+          Carrito
+        </Link>
+        <Link to="/orders" className="btn btn-ghost">
+          Mis Órdenes
+        </Link>
         <Link to="/profile" className="btn btn-ghost">
           Perfil
         </Link>

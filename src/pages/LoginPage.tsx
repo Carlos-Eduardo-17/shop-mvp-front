@@ -17,7 +17,7 @@ export default function LoginPage() {
         try {
             const response = await authService.login({ email, password });
             // Si el login es exitoso, la cookie HttpOnly ya se guardó en el navegador
-            alert(`Bienvenido ${response.data.firstName} ${response.data.lastName}`);
+            //alert(`Bienvenido ${response.data.firstName} ${response.data.lastName}`);
             navigate('/profile');
         } catch (err: any) {
             setError(err.response?.data?.message || 'Error al iniciar sesión');

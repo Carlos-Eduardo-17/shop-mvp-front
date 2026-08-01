@@ -12,9 +12,11 @@ export interface Product {
 }
 
 export const productService = {
-  // Obtener todos los productos
-  getAll: async (): Promise<Product[]> => {
-    const response = await api.get('/products');
+  // Obtener todos los productos, opcionalmente filtrados por categoría
+  getAll: async (categoryId?: number): Promise<Product[]> => {
+    const response = await api.get('/products', {
+      params: categoryId ? { categoryId } : undefined,
+    });
     // El backend envuelve las respuestas en { data: ... }, igual que /users/me.
     // Se deja un fallback defensivo por si el shape cambia en algún endpoint.
     const payload = response.data?.data ?? response.data;

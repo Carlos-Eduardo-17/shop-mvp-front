@@ -3,6 +3,9 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 import { Catalog } from './pages/Catalog';
+import { ProductDetailPage } from './pages/ProductDetailPage';
+import { CartPage } from './pages/CartPage';
+import { OrdersPage } from './pages/OrdersPage';
 import Layout from './components/Layout';
 
 export default function App() {
@@ -15,6 +18,9 @@ export default function App() {
         {/* Rutas con navbar */}
         <Route element={<Layout />}>
           <Route path="/catalog" element={<Catalog />} />
+          <Route path="/products/:id" element={<ProductDetailPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Route>
 
