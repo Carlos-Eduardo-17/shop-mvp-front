@@ -61,13 +61,19 @@ export const Catalog = () => {
               />
             </figure>
             <div className="card-body items-center text-center">
+              <span className="badge badge-outline badge-sm">{product.categoryName}</span>
               <h2 className="card-title">{product.name}</h2>
               <p className="text-sm text-base-content/70 line-clamp-2">
                 {product.description}
               </p>
               <div className="card-actions w-full flex justify-between items-center mt-4">
-                <span className="text-xl font-bold">S/ {product.price.toFixed(2)}</span>
-                <button className="btn btn-primary btn-sm">Ver detalle</button>
+                <span className="text-xl font-bold">S/ {product.unitPrice.toFixed(2)}</span>
+                <button
+                  className="btn btn-primary btn-sm"
+                  disabled={product.unitsInStock === 0}
+                >
+                  {product.unitsInStock === 0 ? 'Sin stock' : 'Ver detalle'}
+                </button>
               </div>
             </div>
           </div>

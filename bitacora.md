@@ -124,3 +124,62 @@ Se creará un archivo para gestionar las peticiones de autenticación ordenadame
 - Crear src/services/product.service.ts y agregar contenido. Véase [product.service.ts](src/services/product.service.ts).
 3. Crear la vista principal del catálogo
 - Crear [src/pages/Catalog.tsx](src/pages/Catalog.tsx) y agregar contenido.
+
+## Corrección de bugs y conexión del Catálogo al Router
+Al probar el flujo completo con el backend real aparecieron varios problemas. Se documentan aquí para referencia futura.
+
+1. **Bug: endpoints de autenticación incorrectos.** `auth.service.ts` apuntaba a `/users/login`, `/users/register` y `/users/logout`, pero el backend expone `/auth/login`, `/auth/register` y `/auth/logout` (verificado contra la colección de Postman del backend). Se corrigieron las tres rutas y se agregó el método `refresh` (`POST /auth/refresh`), pendiente de conectar a la UI. Véase: [auth.service.ts](./src/services/auth.service.ts).
+
+2. **Conexión del Catálogo al enrutador.** `Catalog.tsx` y `product.service.ts` ya existían pero no estaban enlazados a ninguna ruta.
+	- Se creó `src/components/Navbar.tsx` con links a Catálogo y Perfil.
+	- Se creó `src/components/Layout.tsx`, que envuelve las rutas navegables con el Navbar usando `<Outlet />` de react-router-dom.
+	- Se actualizó `App.tsx`: `/login` y `/register` quedan sin navbar; `/catalog` y `/profile` quedan anidadas dentro de `<Layout>`; la ruta comodín (`*`) ahora redirige a `/catalog` en vez de `/login`.
+
+		import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+		import LoginPage from './pages/LoginPage';
+		import RegisterPage from './pages/RegisterPage';
+		import ProfilePage from './pages/ProfilePage';
+		import { Catalog } from './pages/Catalog';
+		import Layout from './components/Layout';
+
+		export default function App() {
+			return (
+				<BrowserRouter>
+				<Routes>
+					<Route path="/login" element={<LoginPage />} />
+					<Route path="/register" element={<RegisterPage />} />
+
+					<Route element={<Layout />}>
+					<Route path="/catalog" element={<Catalog />} />
+					<Route path="/profile" element={<ProfilePage />} />
+					</Route>
+
+					<Route path="*" element={<Navigate to="/catalog" replace />} />
+				</Routes>
+				</BrowserRouter>
+			);
+		}
+
+3. **Bug: `products.map is not a function`.** El backend envuelve las respuestas en un objeto `{ message, data }` (igual que `/users/me`, ya evidenciado en `ProfilePage.tsx`), pero `product.service.ts` devolvía la respuesta completa de axios en lugar de solo el arreglo. Se corrigió para desenvolver `response.data.data`, con un fallback defensivo (`Array.isArray`) por si algún endpoint cambia de forma. Véase: [product.service.ts](./src/services/product.service.ts).
+
+4. **Bug: `Cannot read properties of undefined (reading 'toFixed')`.** La interfaz `Product` asumía campos `price` y `stock` en inglés simple, pero el backend real devuelve `unitPrice`, `unitsInStock` y además incluye `categoryName`. Se confirmó el shape real inspeccionando la respuesta de `GET /products` en la pestaña Network:
+
+		{
+			"message": "Productos",
+			"data": [
+				{
+					"id": 1,
+					"name": "Osito Dormilón",
+					"description": "...",
+					"unitPrice": 45,
+					"unitsInStock": 5,
+					"imageUrl": "...",
+					"categoryId": 1,
+					"categoryName": "Amigurumis"
+				}
+			]
+		}
+
+	Se actualizó la interfaz `Product` (`id` y `categoryId` como `number`, `unitPrice`, `unitsInStock`, `categoryName`) y se ajustó `Catalog.tsx` para usar los nombres reales de campo. De paso, se aprovechó `unitsInStock` para deshabilitar el botón y mostrar "Sin stock" cuando corresponde, y `categoryName` para un badge de categoría en cada card. Véase: [Catalog.tsx](./src/pages/Catalog.tsx).
+
+**Estado tras esta sesión:** login, registro, logout y catálogo funcionando de punta a punta contra el backend real. Pendiente: detalle de producto (`/products/:id`), filtro/listado de categorías, carrito y flujo de órdenes.

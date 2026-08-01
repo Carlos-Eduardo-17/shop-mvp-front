@@ -2,17 +2,23 @@ import { api } from './api';
 
 export const authService = {
     login: async (credentials: { email: string; password: string }) => {
-        const response = await api.post('/users/login', credentials);
+        const response = await api.post('/auth/login', credentials);
         return response.data;
     },
 
     register: async (userData: { email: string; password: string; firstName?: string; lastName?: string }) => {
-        const response = await api.post('/users/register', userData);
+        const response = await api.post('/auth/register', userData);
         return response.data;
     },
 
     logout: async () => {
-        const response = await api.post('/users/logout');
+        const response = await api.post('/auth/logout');
+        return response.data;
+    },
+
+    refresh: async () => {
+        // Renueva accessToken/refreshToken en las cookies HttpOnly
+        const response = await api.post('/auth/refresh');
         return response.data;
     },
 
