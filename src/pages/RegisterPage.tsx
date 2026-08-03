@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../services/auth.service';
+import { getErrorMessage } from '../lib/http-error';
 
 export default function RegisterPage() {
     const [email, setEmail] = useState('');
@@ -22,8 +23,8 @@ export default function RegisterPage() {
             // Por convención simple, lo enviamos al login tras un registro exitoso.
             alert("Registro exitoso");
             navigate('/login');
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Error al registrar usuario');
+        } catch (err) {
+            setError(getErrorMessage(err, 'Error al registrar usuario'));
         } finally {
             setLoading(false);
         }

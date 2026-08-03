@@ -239,3 +239,19 @@ Se corrió `eslint` antes y después del cambio (comparando con `git stash`) par
 Véase: [CartPage.tsx](./src/pages/CartPage.tsx), [ProductDetailPage.tsx](./src/pages/ProductDetailPage.tsx), [OrdersPage.tsx](./src/pages/OrdersPage.tsx).
 
 **Estado tras esta sesión:** el manejo de sesión expirada/inválida quedó centralizado exclusivamente en el interceptor de `api.ts`; ninguna página maneja el 401 por su cuenta. `tsc --noEmit` sin errores en los tres archivos.
+
+## Deuda de ESLint, AuthContext y rutas protegidas, y destino tras un refresh fallido
+Se cerraron los tres pendientes que habían quedado anotados de la sesión anterior.
+
+1. **Deuda de ESLint preexistente.** Se creó `src/lib/http-error.ts` con `getErrorMessage(err, fallback)` (usa `isAxiosError` de axios como type guard) para reemplazar todos los `catch (err: any)` sin tener que repetir la lógica en cada página. De paso, en `ProductDetailPage.tsx` se encontró que el chequeo manual `if (err?.response?.status === 401) navigate('/login')` seguía ahí pese a que la entrada anterior de esta bitácora decía que ya se había limpiado — no llegó a incluirse en aquel commit. Se quitó ahora, ya redundante con el interceptor. Para el patrón `setState` dentro de `useEffect` de `CartPage.tsx`, envolver la llamada a `fetchCart()` en un IIFE async (`(async () => { await fetchCart(); })()`) fue suficiente para que `react-hooks/set-state-in-effect` dejara de dispararse. `npx eslint .` y `npx tsc --noEmit` quedan sin errores.
+
+2. **AuthContext y rutas protegidas.** Se creó `src/context/auth-context.ts` (definición del contexto + hook `useAuth`, sin JSX) y `src/context/AuthContext.tsx` (el componente `AuthProvider`) — separados en dos archivos porque `react-refresh/only-export-components` no deja mezclar un hook exportado con un componente en el mismo archivo. `AuthProvider` pregunta la sesión actual una vez al montar (`GET /users/me`, apoyándose en el interceptor de `api.ts` para renovar sola si hace falta) y expone `status` (`loading`/`authenticated`/`unauthenticated`), `user`, `refreshAuth` y `logout`. Se creó `src/components/ProtectedRoute.tsx`, que solo protege `/cart`, `/orders` y `/profile` — el catálogo y el detalle de producto se dejaron deliberadamente fuera, porque son de lectura pública (solo agregar al carrito exige sesión). `ProfilePage.tsx` se reescribió para consumir `user` y `logout` del contexto en vez de mantener su propio `fetch`/`loading`/redirect duplicado.
+
+3. **UX: volver a donde estaba tras renovar sesión.** Antes, tanto `ProtectedRoute` (sesión no confirmada al entrar a una ruta protegida) como el interceptor de `api.ts` (refresh fallido a media sesión) mandaban siempre a `/login` sin rastro de a dónde iba el usuario. Ahora:
+   - `ProtectedRoute` pasa la ruta actual como `state={{ from }}` de `react-router` al redirigir (vive dentro del árbol de React).
+   - El interceptor de `api.ts`, que vive *fuera* del árbol de React (por eso usa `window.location.href` y no `useNavigate`), la pasa como `?redirectTo=` en la URL.
+   - `LoginPage.tsx` lee ambas fuentes (con un `sanitizeRedirectTarget` que solo acepta rutas internas, para evitar un open-redirect vía `?redirectTo=`) y navega ahí tras un login exitoso; si no hay ninguna, cae a `/profile` como antes.
+
+Véase: [http-error.ts](./src/lib/http-error.ts), [auth-context.ts](./src/context/auth-context.ts), [AuthContext.tsx](./src/context/AuthContext.tsx), [ProtectedRoute.tsx](./src/components/ProtectedRoute.tsx), [ProfilePage.tsx](./src/pages/ProfilePage.tsx), [LoginPage.tsx](./src/pages/LoginPage.tsx), [App.tsx](./src/App.tsx).
+
+**Estado tras esta sesión:** `npx eslint .`, `npx tsc --noEmit` y `npx vite build` sin errores. No se probó todavía contra el backend real (falta levantar sesión de dev y verificar a mano login → ruta protegida → refresh de 15 min → logout); queda pendiente para cuando se despliegue o se corra localmente, igual que el `clearCookie` del backend.

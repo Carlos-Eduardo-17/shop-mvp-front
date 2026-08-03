@@ -12,10 +12,16 @@ export const api = axios.create({
 // Si la sesión no se puede recuperar (refreshToken vencido/inválido, o la
 // petición ya reintentada vuelve a dar 401), no queda otra que re-loguearse.
 // Se evita el loop comprobando que no estemos ya en /login.
+//
+// Como este código vive fuera del árbol de React (no hay useNavigate ni
+// useLocation aquí), la ruta de origen se pasa como query param en vez de
+// state de react-router, para que LoginPage pueda leerla y volver ahí tras
+// un login exitoso en lugar de mandar siempre al punto de entrada por defecto.
 const redirectToLogin = () => {
-    if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-    }
+    if (window.location.pathname === '/login') return;
+
+    const redirectTo = `${window.location.pathname}${window.location.search}`;
+    window.location.href = `/login?redirectTo=${encodeURIComponent(redirectTo)}`;
 };
 
 // El refreshToken es de un solo uso (el backend lo rota en cada llamada a

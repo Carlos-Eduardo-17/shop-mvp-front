@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { type Product, productService } from '../services/product.service';
 import { cartService } from '../services/cart.service';
+import { getErrorMessage } from '../lib/http-error';
 
 export const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -45,14 +46,11 @@ export const ProductDetailPage = () => {
     try {
       await cartService.addItem(product.id, quantity);
       setAddSuccess(true);
-    } catch (err: any) {
-      // Si no está autenticado, se le pide iniciar sesión en vez de mostrar un error genérico
-      if (err?.response?.status === 401) {
-        navigate('/login');
-        return;
-      }
-      const message = err?.response?.data?.message || 'No se pudo agregar el producto al carrito.';
-      setAddError(message);
+    } catch (err) {
+      // El 401 (incluida la sesión no recuperable) ya lo maneja el
+      // interceptor de api.ts: renueva sola o redirige a /login. Este catch
+      // solo cubre errores reales de validación/negocio al agregar al carrito.
+      setAddError(getErrorMessage(err, 'No se pudo agregar el producto al carrito.'));
     } finally {
       setAdding(false);
     }

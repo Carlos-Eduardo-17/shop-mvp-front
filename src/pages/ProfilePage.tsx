@@ -1,45 +1,16 @@
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService } from '../services/auth.service';
+import { useAuth } from '../context/auth-context';
 
 export default function ProfilePage() {
-    const [user, setUser] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    // Al llegar hasta acá ya pasamos por ProtectedRoute, así que la sesión
+    // está confirmada y user no debería ser null.
+    const { user, logout } = useAuth();
     const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchProfile = async () => {
-            try {
-                const data = await authService.getProfile();
-                setUser(data);
-            } catch (error) {
-                // Si hay error (ej. token inválido o expirado), mandamos al login
-                navigate('/login', { replace: true });
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchProfile();
-    }, [navigate]);
-
     const handleLogout = async () => {
-        try {
-            await authService.logout();
-            // El backend debería encargarse de limpiar las cookies            
-            navigate('/login');
-        } catch (error) {
-            console.error('Error cerrando sesión', error);
-        }
+        await logout();
+        navigate('/login');
     };
-
-    if (loading) {
-        return (
-            <div className="flex h-screen items-center justify-center bg-base-200">
-                <span className="loading loading-spinner loading-lg text-primary"></span>
-            </div>
-        );
-    }
 
     return (
         <div className="flex h-screen items-center justify-center bg-base-200 p-4">
@@ -50,12 +21,11 @@ export default function ProfilePage() {
 
                     <div className="w-full bg-base-200 rounded-box p-4 mb-6">
                         <p className="font-semibold">Correo registrado:</p>
-                        <p>{user?.data.email || 'No disponible'}</p>
+                        <p>{user?.email || 'No disponible'}</p>
                         <p className="font-semibold">Nombre:</p>
-                        <p>{user?.data.firstName || 'No disponible'}</p>
+                        <p>{user?.firstName || 'No disponible'}</p>
                         <p className="font-semibold">Apellido:</p>
-                        <p>{user?.data.lastName || 'No disponible'}</p>
-
+                        <p>{user?.lastName || 'No disponible'}</p>
                     </div>
 
                     <button onClick={handleLogout} className="btn btn-outline btn-error w-full">

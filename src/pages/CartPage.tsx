@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { type Cart, cartService } from '../services/cart.service';
 import { orderService } from '../services/order.service';
+import { getErrorMessage } from '../lib/http-error';
 
 export const CartPage = () => {
   const [cart, setCart] = useState<Cart | null>(null);
@@ -34,8 +35,9 @@ export const CartPage = () => {
   };
 
   useEffect(() => {
-    fetchCart();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    (async () => {
+      await fetchCart();
+    })();
   }, []);
 
   const handleRemove = async (cartItemId: number) => {
@@ -66,12 +68,11 @@ export const CartPage = () => {
       await orderService.create(trimmed);
       // La orden se creó y el carrito quedó vacío en el backend; se navega al historial
       navigate('/orders');
-    } catch (err: any) {
+    } catch (err) {
       // El 401 (incluida la sesión no recuperable) ya lo maneja el
       // interceptor de api.ts: renueva sola o redirige a /login. Este catch
       // solo cubre errores reales de validación/negocio del checkout.
-      const message = err?.response?.data?.message || 'No se pudo generar la orden.';
-      setCheckoutError(message);
+      setCheckoutError(getErrorMessage(err, 'No se pudo generar la orden.'));
     } finally {
       setCheckingOut(false);
     }

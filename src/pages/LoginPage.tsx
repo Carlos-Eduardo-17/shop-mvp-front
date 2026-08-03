@@ -1,6 +1,18 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import { authService } from '../services/auth.service';
+import { getErrorMessage } from '../lib/http-error';
+import { useAuth } from '../context/auth-context';
+
+// Evita open-redirects: solo se acepta un destino que sea una ruta interna
+// (empieza con "/" pero no con "//", que el navegador podría interpretar
+// como protocol-relative hacia otro dominio).
+const sanitizeRedirectTarget = (candidate: string | null | undefined): string | null => {
+    if (!candidate || !candidate.startsWith('/') || candidate.startsWith('//')) {
+        return null;
+    }
+    return candidate;
+};
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -8,6 +20,18 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
+    const [searchParams] = useSearchParams();
+    const { refreshAuth } = useAuth();
+
+    // A dónde volver tras loguearse: si fue ProtectedRoute quien mandó para
+    // acá (dentro del árbol de React), viene en location.state.from; si fue
+    // el interceptor de api.ts (fuera del árbol, tras un refresh fallido),
+    // viene como ?redirectTo= en la URL. Si no hay ninguno, /profile por defecto.
+    const redirectTarget =
+        sanitizeRedirectTarget((location.state as { from?: string } | null)?.from) ||
+        sanitizeRedirectTarget(searchParams.get('redirectTo')) ||
+        '/profile';
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -16,11 +40,13 @@ export default function LoginPage() {
 
         try {
             await authService.login({ email, password });
-            // Si el login es exitoso, la cookie HttpOnly ya se guardó en el navegador
-            //alert(`Bienvenido ${response.data.firstName} ${response.data.lastName}`);
-            navigate('/profile');
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Error al iniciar sesión');
+            // Si el login es exitoso, la cookie HttpOnly ya se guardó en el navegador.
+            // Se refresca el AuthContext para que el resto de la app (ej. rutas
+            // protegidas) se entere de inmediato de que ya hay sesión.
+            await refreshAuth();
+            navigate(redirectTarget, { replace: true });
+        } catch (err) {
+            setError(getErrorMessage(err, 'Error al iniciar sesión'));
         } finally {
             setLoading(false);
         }
