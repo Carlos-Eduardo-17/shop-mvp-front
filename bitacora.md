@@ -207,3 +207,35 @@ Se creó `order.service.ts` (`create`, `getAll`). En `CartPage.tsx` se reemplaz�
 Nota: el detalle de cada orden que devuelve el backend solo trae `productId` (no el nombre del producto), así que por ahora se muestra como "Producto #id"; se podría enriquecer más adelante si el backend empieza a incluir el nombre.
 
 **Estado tras esta sesión:** con esto, el frontend cubre todo el flujo de punta a punta: login, registro, logout, catálogo, filtro por categoría, detalle de producto, carrito y órdenes.
+
+## Sesión de refreshToken automático (interceptor de axios en `api.ts`)
+Todo el flujo de auth ya funcionaba de punta a punta, salvo por una pieza suelta: `auth.service.ts` tenía un método `refresh()` que llamaba a `POST /auth/refresh`, pero nada en el frontend lo invocaba. Como el `accessToken` dura 15 minutos, cualquier sesión de uso normal terminaba en un 401 sin recuperación automática. Se revisó primero el backend real (no la documentación) para confirmar el contrato: `accessToken` (15 min) y `refreshToken` (7 días) viajan como cookies HttpOnly, `POST /auth/refresh` los rota a ambos, y `requireAuth.middleware.ts` responde 401 tanto si el `accessToken` falta como si expiró o es inválido.
+
+Se implementó todo en un interceptor de respuesta de axios en `api.ts` (no se creó `AuthContext` ni rutas protegidas — no era el objetivo de esta sesión), en tres partes:
+
+1. **Renovación transparente.** Ante un 401, el interceptor llama a `POST /auth/refresh` y reintenta la petición original una sola vez (flag `_retry` en el config de axios, para no reintentar en loop). Se excluyó explícitamente `/auth/login` de este mecanismo: revisando `user.service.ts` se confirmó que el login con credenciales incorrectas *también* responde 401, así que sin esta exclusión un simple error de contraseña hubiera disparado un intento de refresh innecesario y tapado el mensaje real de error.
+2. **Sesión no recuperable → `/login`.** Si el propio `/auth/refresh` responde 401 (el refreshToken de 7 días ya venció o fue revocado) o si la petición ya reintentada vuelve a fallar, se redirige a `/login` con `window.location.href` (no `useNavigate`, porque el interceptor vive fuera del árbol de componentes de React). Se valida `pathname !== '/login'` antes de redirigir, para no generar un loop.
+3. **Refreshes concurrentes.** Revisando `userService.refreshSession` se confirmó que el `refreshToken` es de un solo uso (se rota en cada llamada, vía `updateRefreshToken`). Esto significa que si dos peticiones protegidas expiran casi al mismo tiempo y cada una dispara su propio refresh por separado, la segunda llega con el token ya invalidado por la primera y recibe 401 injustamente — lo que antes de este arreglo hubiera mandado a `/login` a un usuario con la sesión en realidad sana. Se resolvió compartiendo una única promesa (`refreshInFlight`) entre todos los 401 concurrentes, en vez de que cada uno dispare su propia llamada.
+
+Ningún endpoint protegido actual del frontend dispara dos llamadas en paralelo (Catalog usa solo endpoints públicos; Cart hace una única llamada al montar), así que el punto 3 no se pudo probar todavía contra una carrera real — queda como protección defensiva para cuando el front crezca. Los puntos 1 y 2 sí se probaron a mano: login, espera de 6 minutos (accessToken vencido a los 15 min) y una petición protegida (agregar producto al carrito) se renovó sola sin que el usuario notara nada.
+
+**Pendiente, deliberadamente pospuesto para otra sesión:**
+- El backend no hace `clearCookie` cuando el refresh falla (revisado en `user.controller.ts`); la cookie del refreshToken inválido queda en el navegador hasta que expira sola a los 7 días. No es un problema de seguridad (sigue siendo HttpOnly e inútil), solo una llamada de más antes de fallar de nuevo.
+- `CartPage.tsx` tiene un chequeo manual `if (err?.response?.status === 401) navigate('/login')` que quedó redundante desde el punto 2 (el interceptor ya redirige antes de que ese `catch` lo vea). No es un bug, pero es código muerto a limpiar.
+
+Véase: [api.ts](./src/services/api.ts).
+
+**Estado tras esta sesión:** refreshToken funcionando de punta a punta (renovación transparente, fallback a login, protección contra refreshes concurrentes), probado manualmente en los dos primeros puntos.
+
+## Limpieza de código muerto: chequeos manuales de 401 redundantes
+Tras el interceptor de `api.ts`, quedaron tres chequeos manuales `if (err?.response?.status === 401) { navigate('/login'); ... }` en distintas páginas — código que ya no hacía nada útil, porque el interceptor intercepta el 401 antes de que estos `catch` lleguen a verlo (renueva sola la sesión, o si no puede, ya redirige a `/login` él mismo). Se limpiaron los tres:
+
+- **`CartPage.tsx`**: quitado en `fetchCart` y en `handleCheckout`.
+- **`ProductDetailPage.tsx`**: quitado en `handleAddToCart`.
+- **`OrdersPage.tsx`**: quitado en `fetchOrders`. A diferencia de los otros dos, aquí `navigate` no se usaba para nada más, así que también se quitó el import de `useNavigate` y la variable, para no dejar un import huérfano.
+
+Se corrió `eslint` antes y después del cambio (comparando con `git stash`) para separar deuda técnica preexistente de lo tocado en esta limpieza: antes había 5 errores (todos preexistentes: tipos `any` sin especificar en los tres archivos, más un patrón de `setState` dentro de `useEffect` en `CartPage.tsx`, sin relación con el refreshToken). Después quedaron 4 errores + 1 warning — bajó uno porque en `OrdersPage.tsx` el `catch (err: any)` ya no necesitaba tipar `any` al no volver a leer `err.response`. El resto de la deuda (los `any` restantes y el patrón de `setState` en efecto) se deja pendiente para otra sesión, sin relación con esta limpieza.
+
+Véase: [CartPage.tsx](./src/pages/CartPage.tsx), [ProductDetailPage.tsx](./src/pages/ProductDetailPage.tsx), [OrdersPage.tsx](./src/pages/OrdersPage.tsx).
+
+**Estado tras esta sesión:** el manejo de sesión expirada/inválida quedó centralizado exclusivamente en el interceptor de `api.ts`; ninguna página maneja el 401 por su cuenta. `tsc --noEmit` sin errores en los tres archivos.

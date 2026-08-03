@@ -22,11 +22,10 @@ export const CartPage = () => {
     try {
       const data = await cartService.getCart();
       setCart(data);
-    } catch (err: any) {
-      if (err?.response?.status === 401) {
-        navigate('/login');
-        return;
-      }
+    } catch (err) {
+      // El 401 (incluida la sesión no recuperable) ya lo maneja el
+      // interceptor de api.ts: renueva sola o redirige a /login. Este catch
+      // solo cubre errores reales de carga del carrito.
       console.error(err);
       setError('No se pudo cargar el carrito.');
     } finally {
@@ -68,10 +67,9 @@ export const CartPage = () => {
       // La orden se creó y el carrito quedó vacío en el backend; se navega al historial
       navigate('/orders');
     } catch (err: any) {
-      if (err?.response?.status === 401) {
-        navigate('/login');
-        return;
-      }
+      // El 401 (incluida la sesión no recuperable) ya lo maneja el
+      // interceptor de api.ts: renueva sola o redirige a /login. Este catch
+      // solo cubre errores reales de validación/negocio del checkout.
       const message = err?.response?.data?.message || 'No se pudo generar la orden.';
       setCheckoutError(message);
     } finally {

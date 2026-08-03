@@ -1,6 +1,6 @@
 // src/pages/OrdersPage.tsx
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { type Order, orderService } from '../services/order.service';
 
 const statusBadgeClass = (status: string) => {
@@ -29,18 +29,16 @@ export const OrdersPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
         const data = await orderService.getAll();
         setOrders(data);
-      } catch (err: any) {
-        if (err?.response?.status === 401) {
-          navigate('/login');
-          return;
-        }
+      } catch (err) {
+        // El 401 (incluida la sesión no recuperable) ya lo maneja el
+        // interceptor de api.ts: renueva sola o redirige a /login. Este
+        // catch solo cubre errores reales de carga de órdenes.
         console.error(err);
         setError('No se pudieron cargar tus órdenes.');
       } finally {
@@ -49,7 +47,7 @@ export const OrdersPage = () => {
     };
 
     fetchOrders();
-  }, [navigate]);
+  }, []);
 
   if (loading) {
     return (
